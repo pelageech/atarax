@@ -270,14 +270,19 @@ func (s *Scheduler) runJob(ctx context.Context, job *atarax.Job) {
 	s.mu.Unlock()
 	gen := int64(0)
 	chProcessed <- gen
+	last := time.Duration(0)
 	for {
 		<-timer.C
 
-		// power of two random choice
-		timer.ResetBest(
-			job.Interval()+time.Duration(rng.Int64N(int64(job.Interval()-job.Timeout()))),
-			job.Interval()+time.Duration(rng.Int64N(int64(job.Interval()-job.Timeout()))),
-		)
+		if job.Interval()-job.Timeout() == 0 {
+			timer.Reset(job.Interval())
+		} else {
+			// power of two random choice
+			last = timer.ResetBest(
+				job.Interval()-last+time.Duration(rng.Int64N(int64(job.Interval()-job.Timeout()))),
+				job.Interval()-last+time.Duration(rng.Int64N(int64(job.Interval()-job.Timeout()))),
+			) - (job.Interval() - last)
+		}
 
 		select {
 		case <-ctx.Done():

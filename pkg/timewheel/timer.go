@@ -470,14 +470,14 @@ func (t *Ticker) Reset(delay time.Duration) {
 	t.task = task
 }
 
-func (t *Timer) ResetBest(delays ...time.Duration) {
+func (t *Timer) ResetBest(delays ...time.Duration) time.Duration {
 	if len(delays) == 0 {
-		return
+		return 0
 	}
 
 	if len(delays) == 1 {
 		t.Reset(delays[0])
-		return
+		return delays[0]
 	}
 
 	t.task.stop = true
@@ -512,6 +512,7 @@ func (t *Timer) ResetBest(delays ...time.Duration) {
 	}
 
 	t.task = task
+	return delay
 }
 
 func (t *Timer) Stop() {

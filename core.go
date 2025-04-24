@@ -103,7 +103,12 @@ func (j *Job) Task() Runnable {
 
 type JobOpt func(*Job)
 
+// NewJob creates a new instance of Job. If timeout is greater than interval,
+// timeout == interval is used.
 func NewJob(task Runnable, timeout, interval time.Duration, opts ...JobOpt) *Job {
+	if timeout > interval {
+		timeout = interval
+	}
 	j := &Job{
 		timeout:  timeout,
 		interval: interval,

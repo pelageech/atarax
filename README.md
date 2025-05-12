@@ -5,6 +5,14 @@
 # Atarax
 Atarax is a lightweight adaptive scheduler for periodic tasks in Go. It provides an elegant solution for managing recurring jobs with intelligent adaptation to system load with minimal memory footprint and CPU usage.
 
+## Install
+
+To install the package, run:
+
+```bash
+go get github.com/pelageech/atarax
+```
+
 ## Quick start
 
 The package provides an interface `Scheduler` for every schedulers, it's usage is recommended in your code.
@@ -62,3 +70,11 @@ func main() {
 	fmt.Printf("Jobs complete: %d, duration sum: %v\n", jobsComplete, sum)
 }
 ```
+
+## Documentation
+
+For more information, see the [documentation](https://pkg.go.dev/github.com/pelageech/atarax).
+
+## License
+
+Atarax is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

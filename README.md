@@ -1,4 +1,5 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/pelageech/atarax.svg)](https://pkg.go.dev/github.com/pelageech/atarax)
+![Coverage](https://img.shields.io/badge/Coverage-70.8%25-brightgreen)
 
 # Atarax
 Atarax is a lightweight adaptive scheduler for periodic tasks in Go. It provides an elegant solution for managing recurring jobs with intelligent adaptation to system load with minimal memory footprint and CPU usage.

@@ -26,6 +26,29 @@ func (f RunnableFunc) Run(ctx context.Context) error {
 	return f(ctx)
 }
 
+type RunnableCallback[T any] struct {
+	fn func(context.Context) (T, error)
+	cb func(context.Context, T) error
+}
+
+func NewRunnableCallback[T any](
+	fn func(context.Context) (T, error),
+	cb func(context.Context, T) error,
+) RunnableCallback[T] {
+	return RunnableCallback[T]{
+		fn: fn,
+		cb: cb,
+	}
+}
+
+func (r RunnableCallback[T]) Run(ctx context.Context) error {
+	t, err := r.fn(ctx)
+	if err != nil {
+		return err
+	}
+	return r.cb(ctx, t)
+}
+
 type Job struct {
 	timeout  time.Duration
 	interval time.Duration

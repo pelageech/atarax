@@ -110,7 +110,7 @@ func NewTimeWheel(tick time.Duration, bucketsNum int, options ...optionCall) (*T
 		stopC: make(chan struct{}),
 	}
 
-	for i := 0; i < bucketsNum; i++ {
+	for i := range bucketsNum {
 		tw.buckets[i] = make(map[taskID]*Task, 16)
 	}
 

@@ -2,11 +2,13 @@ package workerpool
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/pelageech/atarax"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/stretchr/testify/require"
 )
@@ -14,8 +16,7 @@ import (
 func TestWorkerPool(t *testing.T) {
 	const toComplete = int64(5)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	sch := NewScheduler(nil)
 	go func() {
@@ -59,8 +60,7 @@ func TestWorkerPoolConcurrent(t *testing.T) {
 
 	jobs := [jobsCount]*atarax.Job{}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// start scheduler
 	sch := NewScheduler(nil, WithWorkersCount(jobsCount))
@@ -125,4 +125,57 @@ func TestWorkerPoolConcurrent(t *testing.T) {
 	// can be optimized with synctime in go1.24
 	time.Sleep(1 * time.Second)
 	require.Zero(t, executed.Load())
+}
+
+func TestHedgedTask(t *testing.T) {
+	ctx := t.Context()
+
+	sch := NewScheduler(nil, WithHedged(true))
+	go sch.Schedule(ctx)
+
+	ch1 := make(chan struct{}, 1)
+	answer := make(chan int, 1)
+
+	const toDone = 1
+	doneTasks := &atomic.Int64{}
+
+	var job *atarax.Job
+
+	task := atarax.NewRunnableCallback[int](
+		func(ctx context.Context) (int, error) {
+			select {
+			case ch1 <- struct{}{}:
+				time.Sleep(10000 * time.Millisecond)
+				t.Log("first error")
+				return 0, errors.New("error")
+			default:
+				t.Log("task done, go to callback")
+				return 42, nil
+			}
+		},
+		func(ctx context.Context, i int) error {
+			t.Log("callback done")
+			answer <- i
+			done := doneTasks.Add(1)
+			if done == toDone {
+				err := sch.Remove(job.ID())
+				assert.NoError(t, err)
+			}
+			return nil
+		},
+	)
+
+	job = atarax.NewJob(task, 1000*time.Millisecond, 2000*time.Millisecond)
+
+	err := sch.Add(job)
+	require.NoError(t, err)
+
+	for range toDone {
+		select {
+		case ans := <-answer:
+			assert.Equal(t, 42, ans)
+		case <-time.After(800 * time.Millisecond):
+			t.Fatal("timeout")
+		}
+	}
 }

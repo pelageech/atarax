@@ -2,6 +2,7 @@ package atarax
 
 import (
 	"context"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -15,7 +16,7 @@ const (
 var (
 	_attributeUnspecified = metric.WithAttributeSet(attribute.NewSet(attribute.String(MeterPrefix+"jobs.status", "UNSPECIFIED")))
 	_attributeTimeout     = metric.WithAttributeSet(attribute.NewSet(attribute.String(MeterPrefix+"jobs.status", "TIMEOUT")))
-	_attributeErr         = metric.WithAttributeSet(attribute.NewSet(attribute.String(MeterPrefix+"jobs.status", "ERR")))
+	_attributeErr         = metric.WithAttributeSet(attribute.NewSet(attribute.String(MeterPrefix+"jobs.status", "ERROR")))
 	_attributeOK          = metric.WithAttributeSet(attribute.NewSet(attribute.String(MeterPrefix+"jobs.status", "OK")))
 
 	_ataraxInfo, _  = Meter().Int64Gauge(MeterPrefix + "info")

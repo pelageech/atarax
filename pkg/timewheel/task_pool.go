@@ -17,7 +17,7 @@ type taskPool struct {
 func newTaskPool() *taskPool {
 	return &taskPool{
 		bp: &sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				return &Task{}
 			},
 		},

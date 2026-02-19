@@ -30,7 +30,9 @@ type Scheduler struct {
 	jobsProcessed map[atarax.JobID]chan int64
 	jobsDone      map[atarax.JobID]chan struct{}
 
-	workers int64
+	workers            int64
+	hedged             bool
+	randomizeFirstCall bool
 
 	jobsChan   *lockfree.Queue[jobGen]
 	spinCond   chan struct{}
@@ -57,17 +59,22 @@ type Scheduler struct {
 
 type Opt func(*Scheduler)
 
-// WithServiceName is used for a separate attribute for OTel metrics.
-func WithServiceName(serviceName string) Opt {
-	return func(s *Scheduler) {
-		s.serviceName = serviceName
-	}
-}
-
 // WithWorkersCount sets an initial worker pool size.
 func WithWorkersCount(count int64) Opt {
 	return func(s *Scheduler) {
 		s.workers = count
+	}
+}
+
+func WithHedged(enabled bool) Opt {
+	return func(s *Scheduler) {
+		s.hedged = true
+	}
+}
+
+func WithRandomizeFirstCall(enabled bool) Opt {
+	return func(s *Scheduler) {
+		s.randomizeFirstCall = enabled
 	}
 }
 
@@ -271,9 +278,10 @@ func (s *Scheduler) runJob(ctx context.Context, job *atarax.Job) {
 	gen := int64(0)
 	chProcessed <- gen
 	last := time.Duration(0)
-	for {
+	if s.randomizeFirstCall {
 		<-timer.C
-
+	}
+	for {
 		if job.Interval()-job.Timeout() == 0 {
 			timer.Reset(job.Interval())
 		} else {
@@ -284,10 +292,14 @@ func (s *Scheduler) runJob(ctx context.Context, job *atarax.Job) {
 			) - (job.Interval() - last)
 		}
 
+	selectGen:
 		select {
 		case <-ctx.Done():
 			return
-		case <-chProcessed:
+		case processedGen := <-chProcessed:
+			if processedGen != gen {
+				goto selectGen
+			}
 			gen++
 
 			select {
@@ -304,6 +316,23 @@ func (s *Scheduler) runJob(ctx context.Context, job *atarax.Job) {
 		default:
 			s.jobsTicksDropped.Add(ctx, 1)
 		}
+
+		if s.hedged {
+			select {
+			case <-ctx.Done():
+				return
+			case processedGen := <-chProcessed:
+				select {
+				case chProcessed <- processedGen:
+				default:
+				}
+			case <-timewheel.After(job.Timeout() / 2):
+				s.jobsChan.Enqueue(jobGen{gen: gen, job: job, send: chProcessed})
+				s.jobsWaiting.Add(ctx, 1)
+			}
+		}
+
+		<-timer.C
 	}
 }
 
